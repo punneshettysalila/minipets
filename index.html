@@ -23,6 +23,10 @@ body.desktop #stage{background:transparent}
 .pet.flight .rig{filter:drop-shadow(0 9px 5px rgba(47,37,27,.2))}
 .pet.flight .tg{animation-duration:.18s}
 .pet.typing .foot{animation:dangle .18s ease-in-out infinite alternate}
+.pet.typing .hands{animation:type  .22s ease-in-out infinite}
+.pet.shaking .rig{animation:shake .42s ease-in-out infinite}
+.pet.jumping .hands{animation:wave .6s ease-in-out infinite alternate}
+.hands{transform-box:fill-box;transform-origin:center}
 .pet-tools{position:absolute;left:50%;top:50%;display:flex;gap:5px;transform:translate(-50%,-50%) scale(.7);opacity:0;pointer-events:none;transition:opacity .15s,transform .15s;z-index:3}
 .pet:hover .pet-tools,.pet.held .pet-tools{opacity:1;transform:translate(-50%,-115%) scale(1);pointer-events:auto}
 .pet-tools button{width:27px;height:27px;padding:0;border:1px solid var(--line);border-radius:50%;background:var(--card);box-shadow:0 3px 10px rgba(47,37,27,.18);font-size:14px;line-height:1}
@@ -42,6 +46,8 @@ body.desktop #stage{background:transparent}
 @keyframes wag{0%,100%{transform:rotate(-8deg)}50%{transform:rotate(10deg)}}
 @keyframes dangle{from{transform:translateY(0)}to{transform:translateY(4px)}}
 @keyframes type{0%,100%{transform:translateY(0)}50%{transform:translateY(2px)}}
+@keyframes shake{0%,100%{transform:rotate(-2deg)}50%{transform:rotate(2deg)}}
+@keyframes wave{from{transform:rotate(-12deg)}to{transform:rotate(12deg)}}
 @media (prefers-reduced-motion:reduce){.eye,.tg,.fl{animation:none}}
 #fab{position:absolute;right:14px;bottom:14px;z-index:9999;border:1px solid var(--line);background:var(--card);color:var(--fg);padding:10px 16px;border-radius:999px;font:inherit;font-weight:500;cursor:pointer;box-shadow:0 4px 14px rgba(47,37,27,.1)}
 #credit{position:absolute;left:50%;bottom:18px;z-index:10;max-width:calc(100% - 150px);transform:translateX(-50%);color:var(--muted);font-size:11px;letter-spacing:.02em;text-align:center;pointer-events:none}
@@ -160,7 +166,7 @@ function sprite({species,color,portrait}){
       face:`<path d="M54 90 Q60 96 66 90" stroke="#3a1608" stroke-width="2" fill="none" stroke-linecap="round"/><circle cx="41" cy="88" r="4.5" fill="#ff7a6b" opacity=".35"/><circle cx="79" cy="88" r="4.5" fill="#ff7a6b" opacity=".35"/>`}),
   };
   const s=(S[species]||S.robot)();
-  return `<svg viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg"><defs>${s.defs}</defs><ellipse cx="60" cy="114" rx="30" ry="4.5" fill="#000" opacity=".14"/><g class="tg">${s.tail}</g><g class="bd">${s.body}</g><g class="head">${s.head}<g class="eyes">${s.eyes}</g>${s.face||''}</g></svg>`;
+  return `<svg viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg"><defs>${s.defs}</defs><ellipse cx="60" cy="114" rx="30" ry="4.5" fill="#000" opacity=".14"/><g class="tg">${s.tail}</g><g class="bd">${s.body}</g><g class="hands" stroke="${d}" stroke-width="3.5" stroke-linecap="round" fill="none"><path d="M38 76 Q24 82 30 94"/><path d="M82 76 Q96 82 90 94"/></g><g class="head">${s.head}<g class="eyes">${s.eyes}</g>${s.face||''}</g></svg>`;
 }
 
 /* greetings + memory */
@@ -200,7 +206,7 @@ function spawn(id){
   el.innerHTML=`<div class="bub"></div><div class="pet-tools"><button data-tool="settings" aria-label="Open pet settings" title="Available pets and create a new pet">⚙</button><button data-tool="remove" aria-label="Remove this pet" title="Remove this pet">×</button></div><div class="rig">${sprite(d)}</div>`;
   const q=mem.pos[id],o=[...pets.values()][0];
   const p={id,d,el,rig:el.querySelector('.rig'),bub:el.querySelector('.bub'),head:el.querySelector('.head'),eyes:el.querySelector('.eyes'),
-    x:q?q[0]*SW:SW*(o&&o.x<SW/2?.68:.32),y:q?q[1]*SH:SH*.58,ex:0,ey:0,hx:0,hy:0,hr:0,tilt:0,tv:0,vx:0,hop:0,hv:0,perk:0,held:false,taps:0,moved:0,bt:0,action:'sitting',actionAt:performance.now()+5000};
+    x:q?q[0]*SW:SW*(o&&o.x<SW/2?.68:.32),y:q?q[1]*SH:SH*.58,tx:0,ty:0,ex:0,ey:0,hx:0,hy:0,hr:0,tilt:0,tv:0,vx:0,hop:0,hv:0,perk:0,held:false,taps:0,moved:0,bt:0,action:'sitting',actionAt:performance.now()+5000,wanderAt:0};
   clampPos(p);applyPos(p);
   el.addEventListener('pointerdown',e=>{
     if(e.target.closest('.pet-tools'))return;
@@ -251,7 +257,19 @@ function frame(t){
   const idle=Date.now()-lastMove>6000;
   if(idle&&t-lastRand>2600){ptr.x=Math.random()*SW;ptr.y=Math.random()*SH;lastRand=t}
   pets.forEach(p=>{
-    if(!p.held&&t>p.actionAt){p.action=p.action==='sitting'?'typing':p.action==='typing'?'jumping':'sitting';p.actionAt=t+(p.action==='jumping'?2200:6500)}
+    if(!p.held&&t>p.actionAt){
+      p.action=p.action==='sitting'?'typing':p.action==='typing'?'jumping':p.action==='jumping'?'shaking':'sitting';
+      p.actionAt=t+(p.action==='jumping'?2200:p.action==='shaking'?1800:6500);
+    }
+    if(!p.held&&t>p.wanderAt){
+      const margin=px(p)*.7;
+      p.tx=margin+Math.random()*Math.max(1,SW-margin*2);
+      p.ty=margin+Math.random()*Math.max(1,SH-margin*2);
+      p.wanderAt=t+7000+Math.random()*7000;
+    }
+    if(!p.held&&p.tx){
+      p.x=L(p.x,p.tx,.0045);p.y=L(p.y,p.ty,.0045);clampPos(p);applyPos(p);
+    }
     const dx=ptr.x-p.x,dy=ptr.y-p.y,d=Math.hypot(dx,dy)||1,k=Math.min(1,d/240),nx=dx/d*k,ny=dy/d*k;
     p.ex=L(p.ex,nx*3.4,.18);p.ey=L(p.ey,ny*2.8,.18);
     p.hx=L(p.hx,nx*4,.12);p.hy=L(p.hy,ny*3,.12);p.hr=L(p.hr,nx*7,.12);
@@ -260,6 +278,8 @@ function frame(t){
     if(p.hop>0||p.hv>0){p.hv-=.8;p.hop+=p.hv;if(p.hop<=0){p.hop=0;p.hv=0}}
     if(p.action==='jumping'&&!p.held&&p.hop===0)p.hv=5;
     p.el.classList.toggle('typing',p.action==='typing'&&!p.held);
+    p.el.classList.toggle('jumping',p.action==='jumping'&&!p.held);
+    p.el.classList.toggle('shaking',p.action==='shaking'&&!p.held);
     const br=Math.sin(t/650+p.x)*.02,up=p.perk*.05+(p.held?.08:0);
     p.rig.style.transform=`translateY(${-p.hop*px(p)/120-(p.held?6:0)}px) rotate(${p.tilt+Math.sin(t/1400+p.y)*1.2}deg) scale(${1+br+up},${1-br+up})`;
     p.head.setAttribute('transform',`translate(${p.hx.toFixed(2)} ${(p.hy-p.perk*2).toFixed(2)}) rotate(${p.hr.toFixed(2)} 60 88)`);

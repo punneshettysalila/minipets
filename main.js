@@ -2,13 +2,18 @@ const { app, BrowserWindow, screen } = require('electron');
 const path = require('path');
 
 function createWindow() {
-  const display = screen.getPrimaryDisplay();
-  const { width, height } = display.workAreaSize;
+  const displays = screen.getAllDisplays();
+  const bounds = displays.reduce((area, display) => ({
+    x: Math.min(area.x, display.bounds.x),
+    y: Math.min(area.y, display.bounds.y),
+    right: Math.max(area.right, display.bounds.x + display.bounds.width),
+    bottom: Math.max(area.bottom, display.bounds.y + display.bounds.height)
+  }), { x: 0, y: 0, right: 0, bottom: 0 });
   const window = new BrowserWindow({
-    x: 0,
-    y: 0,
-    width,
-    height,
+    x: bounds.x,
+    y: bounds.y,
+    width: bounds.right - bounds.x,
+    height: bounds.bottom - bounds.y,
     transparent: true,
     frame: false,
     resizable: false,
@@ -28,7 +33,7 @@ function createWindow() {
   window.on('hide', () => {
     if (!window.isDestroyed()) window.showInactive();
   });
-  window.loadFile(path.join(__dirname, 'mini-pets-web.html'), { query: { desktop: '1' } });
+  window.loadFile(path.join(__dirname, 'index.html'), { query: { desktop: '1' } });
 }
 
 app.whenReady().then(createWindow);
