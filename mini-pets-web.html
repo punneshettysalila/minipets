@@ -13,10 +13,19 @@
 html,body{height:100%;margin:0}
 html{scroll-padding-top:env(safe-area-inset-top,0px)}
 body{position:relative;overflow:hidden;background:radial-gradient(circle at 50% 38%,rgba(255,255,255,.72),transparent 48%),var(--bg);color:var(--fg);font:14px/1.4 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;overscroll-behavior:none;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;-webkit-tap-highlight-color:transparent}
+body.desktop{background:transparent}
+body.desktop #credit{display:none}
 #stage{position:absolute;inset:0;overflow:hidden;background:radial-gradient(ellipse at 50% 105%,rgba(155,136,108,.12),transparent 55%)}
+body.desktop #stage{background:transparent}
 .pet{position:absolute;width:calc(var(--b)*var(--s));height:calc(var(--b)*var(--s));transform:translate(-50%,-50%);touch-action:none;cursor:grab}
 .pet::after{content:"";position:absolute;left:19%;bottom:2%;width:62%;height:10%;border-radius:50%;background:rgba(38,31,24,.2);filter:blur(5px);transform:scaleY(.42);z-index:-1;pointer-events:none}
 .pet.held{cursor:grabbing}
+.pet.flight .rig{filter:drop-shadow(0 9px 5px rgba(47,37,27,.2))}
+.pet.flight .tg{animation-duration:.18s}
+.pet.typing .foot{animation:dangle .18s ease-in-out infinite alternate}
+.pet-tools{position:absolute;left:50%;top:50%;display:flex;gap:5px;transform:translate(-50%,-50%) scale(.7);opacity:0;pointer-events:none;transition:opacity .15s,transform .15s;z-index:3}
+.pet:hover .pet-tools,.pet.held .pet-tools{opacity:1;transform:translate(-50%,-115%) scale(1);pointer-events:auto}
+.pet-tools button{width:27px;height:27px;padding:0;border:1px solid var(--line);border-radius:50%;background:var(--card);box-shadow:0 3px 10px rgba(47,37,27,.18);font-size:14px;line-height:1}
 .rig{width:100%;height:100%;transform-origin:50% 92%;will-change:transform;filter:drop-shadow(0 5px 4px rgba(47,37,27,.16))}
 .rig svg{width:100%;height:100%;overflow:visible;display:block}
 .bub{position:absolute;left:50%;bottom:100%;transform:translate(-50%,4px);margin-bottom:2px;width:max-content;max-width:210px;background:var(--card);color:var(--fg);border:1px solid var(--line);border-radius:12px;padding:6px 10px;font-size:12px;text-align:center;opacity:0;pointer-events:none;transition:opacity .2s,transform .2s}
@@ -32,6 +41,7 @@ body{position:relative;overflow:hidden;background:radial-gradient(circle at 50% 
 @keyframes blink{0%,93%,100%{transform:scaleY(1)}96%{transform:scaleY(.1)}}
 @keyframes wag{0%,100%{transform:rotate(-8deg)}50%{transform:rotate(10deg)}}
 @keyframes dangle{from{transform:translateY(0)}to{transform:translateY(4px)}}
+@keyframes type{0%,100%{transform:translateY(0)}50%{transform:translateY(2px)}}
 @media (prefers-reduced-motion:reduce){.eye,.tg,.fl{animation:none}}
 #fab{position:absolute;right:14px;bottom:14px;z-index:9999;border:1px solid var(--line);background:var(--card);color:var(--fg);padding:10px 16px;border-radius:999px;font:inherit;font-weight:500;cursor:pointer;box-shadow:0 4px 14px rgba(47,37,27,.1)}
 #credit{position:absolute;left:50%;bottom:18px;z-index:10;max-width:calc(100% - 150px);transform:translateX(-50%);color:var(--muted);font-size:11px;letter-spacing:.02em;text-align:center;pointer-events:none}
@@ -51,6 +61,8 @@ button.on{background:var(--ink);color:var(--onink);border-color:var(--ink)}
 label{display:block;font-size:12px;color:var(--muted);margin:10px 0 4px}
 input[type=text],select{width:100%;box-sizing:border-box;padding:8px 10px;font:inherit;color:var(--fg);background:var(--bg);border:1px solid var(--line);border-radius:8px}
 input[type=color]{width:100%;height:38px;border:1px solid var(--line);border-radius:8px;background:var(--bg);padding:2px}
+#fphoto{width:100%;box-sizing:border-box;padding:7px;border:1px dashed var(--line);border-radius:8px;background:var(--bg);font:inherit;color:var(--fg)}
+#photoHint{display:block;color:var(--muted);font-size:11px;margin-top:4px}
 #prev{width:96px;height:96px;margin:6px auto 0}#prev svg{width:100%;height:100%}
 #err{color:var(--danger);font-size:12px;min-height:16px;margin-top:6px}
 .btns{display:flex;gap:8px;margin-top:8px}.btns button{flex:1}
@@ -69,6 +81,7 @@ input[type=color]{width:100%;height:38px;border:1px solid var(--line);border-rad
       <div id="prev"></div>
       <label for="fname">Name</label><input id="fname" type="text" maxlength="14" placeholder="Something that means something">
       <label for="fmean">What does the name mean? (optional)</label><input id="fmean" type="text" maxlength="70" placeholder="e.g. “Stardust” in Hindi">
+      <label for="fphoto">Or make a mini doodle from a photo</label><input id="fphoto" type="file" accept="image/*"><small id="photoHint">The image stays on this device and is resized locally.</small>
       <label for="fsp">Species</label>
       <select id="fsp"><option value="robot">Robot</option><option value="droplet">Droplet</option><option value="leaf">Leaf</option><option value="owl">Owl</option><option value="eagle">Eagle</option><option value="flame">Flame</option></select>
       <label for="fcol">Color</label><input id="fcol" type="color" value="#9fb3c8">
@@ -81,6 +94,7 @@ input[type=color]{width:100%;height:38px;border:1px solid var(--line);border-rad
 (()=>{
 const $=s=>document.querySelector(s);
 const KEY='minipets.v1',MAX=2,MIN_S=.5,MAX_S=2.5,STEP=.15;
+if(new URLSearchParams(location.search).has('desktop'))document.body.classList.add('desktop');
 const PRESETS=[
 {id:'axiom',name:'Axiom',species:'robot',color:'#9fb3c8',meaning:'A truth so clear it needs no proof. The first rule everything else builds on.'},
 {id:'naia',name:'Naia',species:'droplet',color:'#4db3ff',meaning:'Greek for “flowing”, from the naiads, the nymphs of springs and rivers.'},
@@ -101,7 +115,12 @@ const L=(a,b,f)=>a+(b-a)*f;
 function shade(hex,a){const n=parseInt(hex.slice(1),16);const c=v=>Math.max(0,Math.min(255,v+a)).toString(16).padStart(2,'0');return '#'+[(n>>16)&255,(n>>8)&255,n&255].map(c).join('')}
 const SPC={robot:'#9fb3c8',droplet:'#4db3ff',leaf:'#6cc24a',owl:'#a07850',eagle:'#7a5230',flame:'#ff8a3d'};
 let GID=0;
-function sprite({species,color}){
+function portraitSprite(data){
+  const u='p'+(++GID);
+  return `<svg viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg"><defs><clipPath id="${u}c"><circle cx="60" cy="57" r="39"/></clipPath><filter id="${u}d"><feColorMatrix type="saturate" values=".72"/><feComponentTransfer><feFuncR type="linear" slope="1.08" intercept="-.04"/><feFuncG type="linear" slope="1.08" intercept="-.04"/><feFuncB type="linear" slope="1.08" intercept="-.04"/></feComponentTransfer></filter></defs><ellipse cx="60" cy="114" rx="30" ry="4.5" fill="#000" opacity=".14"/><path d="M31 107 Q38 91 60 91 Q82 91 89 107Z" fill="#6c83a0"/><image href="${data}" x="21" y="18" width="78" height="78" preserveAspectRatio="xMidYMid slice" clip-path="url(#${u}c)" filter="url(#${u}d)"/><circle cx="60" cy="57" r="40" fill="none" stroke="#fff" stroke-width="3" opacity=".8"/><path d="M27 43 Q30 19 60 17 Q90 19 93 43" fill="none" stroke="#59483d" stroke-width="6" stroke-linecap="round" opacity=".75"/><circle class="eye" cx="46" cy="62" r="3.5" fill="#17202a"/><circle class="eye" cx="74" cy="62" r="3.5" fill="#17202a"/><path d="M52 75 Q60 81 68 75" stroke="#17202a" stroke-width="2" fill="none" stroke-linecap="round"/><path d="M43 103 Q60 95 77 103" fill="none" stroke="#fff" stroke-width="2" opacity=".55"/></svg>`;
+}
+function sprite({species,color,portrait}){
+  if(portrait)return portraitSprite(portrait);
   const u='g'+(++GID),c=color,d=shade(c,-45),dd=shade(c,-85),l=shade(c,55),ll=shade(c,100);
   const rg=(n,a,b)=>`<radialGradient id="${u}${n}" cx=".35" cy=".28" r=".85"><stop offset="0" stop-color="${a}"/><stop offset="1" stop-color="${b}"/></radialGradient>`;
   const lg=(n,a,b)=>`<linearGradient id="${u}${n}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${a}"/><stop offset="1" stop-color="${b}"/></linearGradient>`;
@@ -178,15 +197,17 @@ function say(p,html){
 function spawn(id){
   const d=def(id);if(!d)return;
   const el=document.createElement('div');el.className='pet';el.style.setProperty('--s',mem.sizes[id]||1);el.style.zIndex=++Z;
-  el.innerHTML=`<div class="bub"></div><div class="rig">${sprite(d)}</div>`;
+  el.innerHTML=`<div class="bub"></div><div class="pet-tools"><button data-tool="settings" aria-label="Open pet settings" title="Available pets and create a new pet">⚙</button><button data-tool="remove" aria-label="Remove this pet" title="Remove this pet">×</button></div><div class="rig">${sprite(d)}</div>`;
   const q=mem.pos[id],o=[...pets.values()][0];
   const p={id,d,el,rig:el.querySelector('.rig'),bub:el.querySelector('.bub'),head:el.querySelector('.head'),eyes:el.querySelector('.eyes'),
-    x:q?q[0]*SW:SW*(o&&o.x<SW/2?.68:.32),y:q?q[1]*SH:SH*.58,ex:0,ey:0,hx:0,hy:0,hr:0,tilt:0,tv:0,vx:0,hop:0,hv:0,perk:0,held:false,taps:0,moved:0,bt:0};
+    x:q?q[0]*SW:SW*(o&&o.x<SW/2?.68:.32),y:q?q[1]*SH:SH*.58,ex:0,ey:0,hx:0,hy:0,hr:0,tilt:0,tv:0,vx:0,hop:0,hv:0,perk:0,held:false,taps:0,moved:0,bt:0,action:'sitting',actionAt:performance.now()+5000};
   clampPos(p);applyPos(p);
   el.addEventListener('pointerdown',e=>{
+    if(e.target.closest('.pet-tools'))return;
     if(e.button>0)return;e.preventDefault();
-    p.held=true;p.moved=0;p.dx=e.clientX-OX-p.x;p.dy=e.clientY-OY-p.y;p.lx=e.clientX;p.ly=e.clientY;
+    p.held=true;p.moved=0;p.action='flying';p.dx=e.clientX-OX-p.x;p.dy=e.clientY-OY-p.y;p.lx=e.clientX;p.ly=e.clientY;
     el.setPointerCapture(e.pointerId);el.classList.add('held');el.style.zIndex=++Z;
+    el.classList.add('flight');
   });
   el.addEventListener('pointermove',e=>{
     if(!p.held)return;
@@ -195,10 +216,19 @@ function spawn(id){
   });
   const up=()=>{
     if(!p.held)return;p.held=false;el.classList.remove('held');
+    el.classList.remove('flight');p.action='sitting';p.actionAt=performance.now()+4500;
     if(p.moved<6){p.hv=6;p.taps++;say(p,p.taps%2?greetHTML(false):`<b>${esc(p.d.name)}</b><br>${esc(p.d.meaning)}`)}
     else{mem.pos[id]=[p.fx,p.fy];save()}
   };
   el.addEventListener('pointerup',up);el.addEventListener('pointercancel',up);
+  el.addEventListener('dblclick',e=>{if(!e.target.closest('.pet-tools'))say(p,`<b>${esc(p.d.name)}</b><br>${esc(p.d.meaning)}`)});
+  el.querySelector('[data-tool="settings"]').onclick=e=>{e.stopPropagation();sheet.hidden=false;form.hidden=true;$('#newBtn').hidden=false;renderList()};
+  el.querySelector('[data-tool="remove"]').onclick=e=>{
+    e.stopPropagation();
+    mem.active=mem.active.filter(activeId=>activeId!==id);
+    if(!mem.active.length)mem.active=['axiom'];
+    delete mem.pos[id];save();syncPets();renderList();
+  };
   el.addEventListener('wheel',e=>{e.preventDefault();resize(id,e.deltaY<0?STEP:-STEP)},{passive:false});
   el.addEventListener('contextmenu',e=>e.preventDefault());
   stage.append(el);pets.set(id,p);return p;
@@ -221,12 +251,15 @@ function frame(t){
   const idle=Date.now()-lastMove>6000;
   if(idle&&t-lastRand>2600){ptr.x=Math.random()*SW;ptr.y=Math.random()*SH;lastRand=t}
   pets.forEach(p=>{
+    if(!p.held&&t>p.actionAt){p.action=p.action==='sitting'?'typing':p.action==='typing'?'jumping':'sitting';p.actionAt=t+(p.action==='jumping'?2200:6500)}
     const dx=ptr.x-p.x,dy=ptr.y-p.y,d=Math.hypot(dx,dy)||1,k=Math.min(1,d/240),nx=dx/d*k,ny=dy/d*k;
     p.ex=L(p.ex,nx*3.4,.18);p.ey=L(p.ey,ny*2.8,.18);
     p.hx=L(p.hx,nx*4,.12);p.hy=L(p.hy,ny*3,.12);p.hr=L(p.hr,nx*7,.12);
     p.perk=L(p.perk,(!p.held&&!idle&&d<px(p)*1.4)?1:0,.1);
     p.tv+=((p.held?Math.max(-30,Math.min(30,p.vx*1.6)):0)-p.tilt)*.14;p.tv*=.82;p.tilt+=p.tv;p.vx*=.85;
     if(p.hop>0||p.hv>0){p.hv-=.8;p.hop+=p.hv;if(p.hop<=0){p.hop=0;p.hv=0}}
+    if(p.action==='jumping'&&!p.held&&p.hop===0)p.hv=5;
+    p.el.classList.toggle('typing',p.action==='typing'&&!p.held);
     const br=Math.sin(t/650+p.x)*.02,up=p.perk*.05+(p.held?.08:0);
     p.rig.style.transform=`translateY(${-p.hop*px(p)/120-(p.held?6:0)}px) rotate(${p.tilt+Math.sin(t/1400+p.y)*1.2}deg) scale(${1+br+up},${1-br+up})`;
     p.head.setAttribute('transform',`translate(${p.hx.toFixed(2)} ${(p.hy-p.perk*2).toFixed(2)}) rotate(${p.hr.toFixed(2)} 60 88)`);
@@ -264,16 +297,35 @@ $('#fab').onclick=()=>{sheet.hidden=!sheet.hidden;if(!sheet.hidden)renderList()}
 $('#done').onclick=()=>{sheet.hidden=true;form.hidden=true;$('#newBtn').hidden=false};
 stage.addEventListener('pointerdown',e=>{if(e.target===stage)sheet.hidden=true});
 
-const prev=()=>{$('#prev').innerHTML=sprite({species:$('#fsp').value,color:$('#fcol').value})};
+let portraitData='';
+const prev=()=>{$('#prev').innerHTML=sprite(portraitData?{portrait:portraitData}:{species:$('#fsp').value,color:$('#fcol').value})};
 $('#newBtn').onclick=()=>{form.hidden=false;$('#newBtn').hidden=true;$('#err').textContent='';prev();$('#fname').focus()};
 $('#fsp').oninput=()=>{$('#fcol').value=SPC[$('#fsp').value];prev()};$('#fcol').oninput=prev;
-$('#fcancel').onclick=()=>{form.hidden=true;$('#newBtn').hidden=false};
-$('#fgo').onclick=()=>{
+$('#fphoto').onchange=()=>{
+  const file=$('#fphoto').files[0];if(!file)return;
+  if(!file.type.startsWith('image/')){$('#err').textContent='Choose an image file.';return}
+  const reader=new FileReader();
+  reader.onload=()=>{
+    const image=new Image();
+    image.onload=()=>{
+      const side=96,canvas=document.createElement('canvas');canvas.width=side;canvas.height=side;
+      const ctx=canvas.getContext('2d'),scale=Math.max(side/image.width,side/image.height),w=image.width*scale,h=image.height*scale;
+      ctx.fillStyle='#efe7dc';ctx.fillRect(0,0,side,side);ctx.filter='saturate(.72) contrast(1.08)';
+      ctx.drawImage(image,(side-w)/2,(side-h)/2,w,h);portraitData=canvas.toDataURL('image/jpeg',.72);
+      $('#photoHint').textContent='Photo ready: your mini doodle will be made locally.';$('#err').textContent='';prev();
+    };
+    image.onerror=()=>{$('#err').textContent='That image could not be read.'};image.src=reader.result;
+  };
+  reader.onerror=()=>{$('#err').textContent='Could not read that image.'};reader.readAsDataURL(file);
+};
+$('#fcancel').onclick=()=>{form.hidden=true;$('#newBtn').hidden=false;portraitData='';$('#fphoto').value=''};
+$('#fgo').onclick=async()=>{
   const name=$('#fname').value.trim();
   if(!name){$('#err').textContent='Give your pet a name.';return}
   if(all().some(p=>p.name.toLowerCase()===name.toLowerCase())){$('#err').textContent='That name already belongs to a pet. Make it yours.';return}
-  const pet={id:'c'+Date.now(),name,species:$('#fsp').value,color:$('#fcol').value,custom:true,meaning:$('#fmean').value.trim()||'A one-of-a-kind friend, named by you.'};
+  const pet={id:'c'+Date.now(),name,species:portraitData?'portrait':$('#fsp').value,color:$('#fcol').value,portrait:portraitData||null,custom:true,meaning:$('#fmean').value.trim()||'A one-of-a-kind friend, named by you.'};
   mem.custom.push(pet);form.hidden=true;$('#newBtn').hidden=false;$('#fname').value='';$('#fmean').value='';
+  $('#fphoto').value='';portraitData='';
   show(pet.id);
 };
 
